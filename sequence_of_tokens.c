@@ -16,7 +16,6 @@ typedef enum {
     CONSTANT,
     STRING_LITERAL,
     PUNCTUATOR,
-    COMMENT,
     PREPROCESSOR,
     OTHER
 } TokenType;
@@ -81,15 +80,6 @@ int isPreprocessor(char *token) {
     return 0;
 }
 
-int isOther(char *token) {
-    if (!isKeyword(token) && !isPunctuator(token) && !isPreprocessor(token)
-        && !isIdentifier(token) && !isConstant(token) && !isStringLiteral(token)
-        && !isComment(token))
-        return 1;
-
-    return 0;
-}
-
 int isIdentifier(char *token) {
     if (isalpha(token[0]) || token[0] == '_')
         return 1;
@@ -111,8 +101,9 @@ int isStringLiteral(char *token) {
     return 0;
 }
 
-int isComment(char *token) {
-    if (token[0] == '/' && token[1] == '/')
+int isOther(char *token) {
+    if (!isKeyword(token) && !isPunctuator(token) && !isPreprocessor(token)
+        && !isIdentifier(token) && !isConstant(token) && !isStringLiteral(token))
         return 1;
 
     return 0;
@@ -135,9 +126,6 @@ void printToken(Token token) {
         case PUNCTUATOR:
             printf("Punctuator: %s\n", token.value);
             break;
-        case COMMENT:
-            printf("Comment: %s\n", token.value);
-            break;
         case PREPROCESSOR:
             printf("Preprocessor: %s\n", token.value);
             break;
@@ -149,46 +137,53 @@ void printToken(Token token) {
 
 int main() {
     char input[1000];
-    char *token;
     Token tokens[MAX_TOKENS];
     int numTokens = 0;
 
     printf("Enter a statement: ");
     fgets(input, sizeof(input), stdin);
 
-    token = strtok(input, " \n\t");
-    while (token != NULL) {
-        if (isKeyword(token)) {
-            tokens[numTokens].type = KEYWORD;
+    char *start = input;
+    char *end = input;
+
+    while (*end != '\0') {
+        while (*start == ' ' || *start == '\t' || *start == '\n')
+            start++;
+
+        end = start;
+        while (*end != ' ' && *end != '\t' && *end != '\n' && *end != '\0')
+            end++;
+
+        int tokenLength = end - start;
+        if (tokenLength > 0) {
+            char token[MAX_TOKEN_LENGTH];
+            strncpy(token, start, tokenLength);
+            token[tokenLength] = '\0';
+
+            if (isKeyword(token)) {
+                tokens[numTokens].type = KEYWORD;
+            } else if (isPunctuator(token)) {
+                tokens[numTokens].type = PUNCTUATOR;
+            } else if (isPreprocessor(token)) {
+                tokens[numTokens].type = PREPROCESSOR;
+            } else if (isOther(token)) {
+                tokens[numTokens].type = OTHER;
+            } else if (isIdentifier(token)) {
+                tokens[numTokens].type = IDENTIFIER;
+            } else if (isConstant(token)) {
+                tokens[numTokens].type = CONSTANT;
+            } else if (isStringLiteral(token)) {
+                tokens[numTokens].type = STRING_LITERAL;
+            } else {
+                printf("Error: Invalid token\n");
+                return 1;
+            }
+
             strcpy(tokens[numTokens].value, token);
-        } else if (isPunctuator(token)) {
-            tokens[numTokens].type = PUNCTUATOR;
-            strcpy(tokens[numTokens].value, token);
-        } else if (isPreprocessor(token)) {
-            tokens[numTokens].type = PREPROCESSOR;
-            strcpy(tokens[numTokens].value, token);
-        } else if (isOther(token)) {
-            tokens[numTokens].type = OTHER;
-            strcpy(tokens[numTokens].value, token);
-        } else if (isIdentifier(token)) {
-            tokens[numTokens].type = IDENTIFIER;
-            strcpy(tokens[numTokens].value, token);
-        } else if (isConstant(token)) {
-            tokens[numTokens].type = CONSTANT;
-            strcpy(tokens[numTokens].value, token);
-        } else if (isStringLiteral(token)) {
-            tokens[numTokens].type = STRING_LITERAL;
-            strcpy(tokens[numTokens].value, token);
-        } else if (isComment(token)) {
-            tokens[numTokens].type = COMMENT;
-            strcpy(tokens[numTokens].value, token);
-        } else {
-            printf("Error: Invalid token\n");
-            return 1;
+            numTokens++;
         }
 
-        numTokens++;
-        token = strtok(NULL, " \n\t");
+        start = end;
     }
 
     printf("\nTokens:\n");
@@ -199,7 +194,7 @@ int main() {
 }
 
 // Output:
-// Enter a statement: int main () { printf ( " Hello World!\n " ) ; return 0 ; }
+// Enter a statement: int main ( ) { printf ( " Hello World! \n " ) ; return 0 ; }
 //
 // Tokens:
 // Keyword: int
